@@ -16,8 +16,8 @@ from src.constants import (
 class Environment(gym.Env):
     metadata = {"render_modes": ["human", "rgb_array"], "render_fps": 4}
 
-    def __init__(self, render_mode=None, width=6, length=24):
-        self.width, self.length = width, length
+    def __init__(self, render_mode=None, width=6, length=24, dt=1.0):
+        self.width, self.length, self.dt = width, length, dt
         self.window_size = (
             512,
             int(512 * (width / length)),
@@ -33,16 +33,23 @@ class Environment(gym.Env):
                     low=np.array([0, -width / 2]),
                     high=np.array([length, width / 2]),
                     shape=(2,),
+                    dtype=np.float32,
                 ),
                 "car_v": spaces.Box(
                     low=np.array([0, -MAX_VELOCITY]),  # car can't move backwards
                     high=np.array([MAX_VELOCITY, MAX_VELOCITY]),
                     shape=(2,),
+                    dtype=np.float32,
                 ),
                 "wheel_angle": spaces.Box(
-                    low=-MAX_WHEEL_ANGLE, high=MAX_WHEEL_ANGLE, shape=(1,)
+                    low=-MAX_WHEEL_ANGLE,
+                    high=MAX_WHEEL_ANGLE,
+                    shape=(1,),
+                    dtype=np.float32,
                 ),
-                "wind": spaces.Box(low=-MAX_WIND, high=MAX_WIND, shape=(1,)),
+                "wind": spaces.Box(
+                    low=-MAX_WIND, high=MAX_WIND, shape=(1,), dtype=np.float32
+                ),
             }
         )
 
@@ -77,17 +84,22 @@ class Environment(gym.Env):
             "wind": self._wind,
         }
 
+    def _get_info(self):
+        return {}
+
     def reset(self, seed=None, options=None):
         # seed self.np_random
         super().reset(seed=seed)
 
         # initialise car position and velocity at track start
-        self._car_pos = np.array([0, 0])
-        self._car_vel = np.array([0, 0])
-        self._wheel_angle = 0
+        self._car_pos = np.array([0.0, 0.0], dtype=np.float32)
+        self._car_vel = np.array([0.0, 0.0], dtype=np.float32)
+        self._wheel_angle = np.array(0.0, dtype=np.float32)
 
         # sample random initial wind speed
-        self._wind = self.np_random.uniform(-MAX_WIND, MAX_WIND)
+        self._wind = np.array(
+            self.np_random.uniform(-MAX_WIND, MAX_WIND), dtype=np.float32
+        )
 
         observation = self._get_obs()
         info = self._get_info()
@@ -100,17 +112,25 @@ class Environment(gym.Env):
     def _update_state(self, action):
         # first, update p_t based on v_t and wind_t
         delta_p = self.dt * (self._car_vel + np.array([0, self._wind]))
-        self._car_pos += delta_p
+        self._car_pos = np.clip(
+            self._car_pos + delta_p, [0, -self.width / 2], [self.length, self.width / 2]
+        )
 
         # then, update v_t based on acceleration and current wheel angle
         delta_v = self.dt * np.array([action[0], np.sin(self._wheel_angle)])
-        self._car_vel += delta_v
+        self._car_vel = np.clip(
+            self._car_vel + delta_v, [0, -MAX_VELOCITY], [MAX_VELOCITY, MAX_VELOCITY]
+        )
 
         # update wheel angle based on angular velocity
-        self._wheel_angle += self.dt * action[1]
+        delta_wheel = self.dt * action[1]
+        self._wheel_angle = np.clip(
+            self._wheel_angle + delta_wheel, -MAX_WHEEL_ANGLE, MAX_WHEEL_ANGLE
+        )
 
         # finally, update wind speed based on random perturbation
-        self._wind += self.np_random.uniform(-MAX_WIND_CHANGE, MAX_WIND_CHANGE)
+        delta_wind = self.np_random.uniform(-MAX_WIND_CHANGE, MAX_WIND_CHANGE)
+        self._wind = np.clip(self._wind + delta_wind, -MAX_WIND, MAX_WIND)
 
     def _compute_reward_and_terminated(self):
         # reward is negative distance to goal
