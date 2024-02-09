@@ -10,6 +10,7 @@ class Environment(gym.Env):
 
     def __init__(self, render_mode=None, width=6, length=20):
         self.width, self.length = width, length
+        self.window_size = 512
 
         """
         define observation space as consisting of the car's current (continuous)
@@ -53,3 +54,25 @@ class Environment(gym.Env):
         """
         self.window = None
         self.clock = None
+
+    def _get_obs(self):
+        return {"car_p": self._car_pos, "car_v": self._car_vel, "wind": self._wind}
+
+    def reset(self, seed=None, options=None):
+        # seed self.np_random
+        super().reset(seed=seed)
+
+        # initialise car position and velocity at track start
+        self._car_pos = np.array([0, 0])
+        self._car_vel = np.array([0, 0])
+
+        # sample random initial wind speed
+        self._wind = self.np_random.uniform(-MAX_WIND, MAX_WIND)
+
+        observation = self._get_obs()
+        info = self._get_info()
+
+        if self.render_mode == "human":
+            self._render_frame()
+
+        return observation, info
