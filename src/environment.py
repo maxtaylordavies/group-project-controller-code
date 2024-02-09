@@ -3,7 +3,7 @@ from gym import spaces
 import numpy as np
 import pygame
 
-from .constants import (
+from src.constants import (
     MAX_VELOCITY,
     MAX_ACCEL,
     MAX_ANGULAR_V,
