@@ -20,7 +20,7 @@ class Environment(gym.Env):
         self.width, self.length, self.dt = width, length, dt
         self.window_size = (
             512,
-            int(512 * (width / length)),
+            int(512 * ((width * 2) / length)),
         )
 
         """
@@ -139,8 +139,8 @@ class Environment(gym.Env):
         # terminate if car goes off track or if it reaches the goal
         terminated = (
             self._car_pos[0] < 0
-            or self._car_pos[0] > self.length
-            or abs(self._car_pos[1]) > self.width / 2
+            or self._car_pos[0] >= self.length
+            or abs(self._car_pos[1]) >= self.width / 2
         )
 
         return r, terminated
@@ -166,7 +166,7 @@ class Environment(gym.Env):
         if self.window is None and self.render_mode == "human":
             pygame.init()
             pygame.display.init()
-            self.window = pygame.display.set_mode((self.window_size, self.window_size))
+            self.window = pygame.display.set_mode(self.window_size)
         if self.clock is None and self.render_mode == "human":
             self.clock = pygame.time.Clock()
 
@@ -175,20 +175,25 @@ class Environment(gym.Env):
         pix_size = self.window_size[0] / self.length
 
         # draw track
+        track_width = pix_size * self.width
         pygame.draw.rect(
             canvas,
             (0, 0, 0),
             pygame.Rect(
                 0,
-                self.window_size[1] / 2 - self.width / 2,
+                self.window_size[1] / 2 - track_width / 2,
                 self.window_size[0],
-                self.width,
+                track_width,
             ),
         )
 
-        # draw car
+        # render car from png file
         car_x = int(self._car_pos[0] * pix_size)
         car_y = int(self.window_size[1] / 2 - self._car_pos[1] * pix_size)
+        car_img = pygame.image.load("../car.png")
+        car_img = pygame.transform.scale(car_img, (2 * int(pix_size), int(pix_size)))
+        car_img = pygame.transform.rotate(car_img, -np.degrees(self._wheel_angle))
+        canvas.blit(car_img, (car_x, car_y))
 
         if self.render_mode == "human":
             # The following line copies our drawings from `canvas` to the visible window
