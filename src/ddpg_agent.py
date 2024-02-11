@@ -52,8 +52,16 @@ class DDPGAgent:
         self.lower_action_bound = action_space.low[0]
         self.saveables = {}
 
-        STATE_SIZE = observation_space.shape[0]
         ACTION_SIZE = action_space.shape[0]
+        if isinstance(observation_space, gym.spaces.dict.Dict):
+            STATE_SIZE = 0
+            for k, v in observation_space.items():
+                STATE_SIZE += v.shape[0]
+        else:
+            STATE_SIZE = observation_space.shape[0]
+
+        print(f"STATE_SIZE: {STATE_SIZE}")
+        print(f"ACTION_SIZE: {ACTION_SIZE}")
 
         # set up networks
         self.actor = FCNetwork(
@@ -190,3 +198,11 @@ class DDPGAgent:
             "q_loss": q_loss,
             "p_loss": p_loss,
         }
+
+    def schedule_hyperparameters(self, timestep: int, max_timesteps: int):
+        """Updates the hyperparameters
+
+        :param timestep (int): current timestep at the beginning of the episode
+        :param max_timestep (int): maximum timesteps that the training loop will run for
+        """
+        pass

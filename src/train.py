@@ -1,4 +1,5 @@
 from collections import defaultdict
+import os
 import time
 from typing import Tuple, Dict
 
@@ -8,6 +9,12 @@ from tqdm import tqdm
 
 from src.ddpg_agent import DDPGAgent
 from src.replay import ReplayBuffer
+
+
+def process_obs(obs):
+    if isinstance(obs, dict):
+        return np.concatenate([v for k, v in obs.items()])
+    return obs
 
 
 def play_episode(
@@ -20,14 +27,19 @@ def play_episode(
     max_steps=200,
     batch_size=64,
 ):
-    ep_data, done, obs = defaultdict(list), False, env.reset()
+    ep_data, done = defaultdict(list), False
+    obs, _ = env.reset()
+    obs = process_obs(obs)
+
     if render:
         env.render()
 
     ep_timesteps, ep_return = 0, 0.0
     while not done:
         action = agent.act(obs, explore=explore)
-        nobs, reward, done, _ = env.step(action)
+        nobs, reward, done, _, _ = env.step(action)
+        nobs = process_obs(nobs)
+
         if train:
             replay_buffer.push(
                 np.array(obs, dtype=np.float32),
@@ -110,7 +122,7 @@ def train_agent(
                         replay_buffer,
                         train=False,
                         explore=False,
-                        render=RENDER,
+                        render=False,
                         max_steps=config["episode_length"],
                         batch_size=config["batch_size"],
                     )
@@ -129,7 +141,10 @@ def train_agent(
                     break
 
     if config["save_filename"]:
-        print("Saving to: ", agent.save(config["save_filename"]))
+        print(
+            "Saving to: ",
+            agent.save(os.path.join("../checkpoints", config["save_filename"])),
+        )
 
     return (
         np.array(eval_returns_all),
