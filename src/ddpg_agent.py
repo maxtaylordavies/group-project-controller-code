@@ -6,6 +6,7 @@ import numpy as np
 import torch
 import torch.nn.functional as F
 from torch.optim import Adam
+from torch.optim.lr_scheduler import ExponentialLR
 from torch.autograd import Variable
 from torch.distributions import Normal
 
@@ -86,9 +87,11 @@ class DDPGAgent:
         self.policy_optim = Adam(
             self.actor.parameters(), lr=policy_learning_rate, eps=1e-3
         )
+        self.policy_lr_scheduler = ExponentialLR(self.policy_optim, 0.99)
         self.critic_optim = Adam(
             self.critic.parameters(), lr=critic_learning_rate, eps=1e-3
         )
+        self.critic_lr_scheduler = ExponentialLR(self.critic_optim, 0.99)
 
         # define loss function
         self.loss_fn = torch.nn.MSELoss()
@@ -98,6 +101,8 @@ class DDPGAgent:
         self.critic_learning_rate = critic_learning_rate
         self.policy_learning_rate = policy_learning_rate
         self.tau = tau
+        self.hyperparam_update_interval = 1000
+        self.last_hyperparam_update = 0
 
         # define a gaussian for exploration
         mean = torch.zeros(ACTION_SIZE)
@@ -205,4 +210,10 @@ class DDPGAgent:
         :param timestep (int): current timestep at the beginning of the episode
         :param max_timestep (int): maximum timesteps that the training loop will run for
         """
-        pass
+        if timestep - self.last_hyperparam_update < self.hyperparam_update_interval:
+            return
+
+        self.policy_lr_scheduler.step()
+        self.critic_lr_scheduler.step()
+        self.noise.std = 0.1 * (1 - timestep / max_timesteps)
+        self.last_hyperparam_update = timestep
