@@ -114,7 +114,7 @@ def train_agent(
 
             # possibly run evaluation
             if timesteps_elapsed % config["eval_freq"] < ep_timesteps:
-                eval_returns = 0
+                eval_returns, successes = 0, 0
                 for _ in range(config["eval_episodes"]):
                     _, ep_return, _ = play_episode(
                         env,
@@ -127,23 +127,28 @@ def train_agent(
                         batch_size=config["batch_size"],
                     )
                     eval_returns += ep_return / config["eval_episodes"]
+                    successes += ep_return >= 0
                 if output:
                     pbar.write(
-                        f"Evaluation at timestep {timesteps_elapsed} returned a mean returns of {eval_returns}"
+                        f"Evaluation at timestep {timesteps_elapsed}: mean return {eval_returns}, success rate {successes / config['eval_episodes']}"
                     )
                 eval_returns_all.append(eval_returns)
                 eval_timesteps_all.append(timesteps_elapsed)
                 eval_times_all.append(time.time() - start_time)
-                if eval_returns >= config["target_return"]:
-                    pbar.write(
-                        f"Reached return {eval_returns} >= target return of {config['target_return']}"
-                    )
-                    break
+
+                if eval_returns == max(eval_returns_all):
+                    agent.save(os.path.join("../checkpoints/best.pt"))
+
+                # if eval_returns >= config["target_return"]:
+                #     pbar.write(
+                #         f"Reached return {eval_returns} >= target return of {config['target_return']}"
+                #     )
+                #     break
 
     if config["save_filename"]:
         print(
             "Saving to: ",
-            agent.save(os.path.join("../checkpoints", config["save_filename"])),
+            agent.save(os.path.join("../checkpoints/latest.pt")),
         )
 
     return (

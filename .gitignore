@@ -2,3 +2,4 @@
 group_project_controller_code.egg-info
 **/__pycache__/
 scripts/scratchpad.py
+checkpoints/
