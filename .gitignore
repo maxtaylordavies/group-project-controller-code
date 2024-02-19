@@ -1,5 +1,7 @@
 .env
 group_project_controller_code.egg-info
 **/__pycache__/
+**/.DS_Store
 scripts/scratchpad.py
 checkpoints/
+recordings/

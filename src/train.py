@@ -24,6 +24,7 @@ def play_episode(
     train=True,
     explore=True,
     render=False,
+    record_fp="",
     max_steps=200,
     batch_size=64,
 ):
@@ -33,6 +34,9 @@ def play_episode(
 
     if render:
         env.render()
+
+    if record_fp != "":
+        env.init_recording(record_fp)
 
     ep_timesteps, ep_return = 0, 0.0
     while not done:
@@ -62,6 +66,9 @@ def play_episode(
         if max_steps == ep_timesteps:
             break
         obs = nobs
+
+    if record_fp != "":
+        env.finish_recording()
 
     return ep_timesteps, ep_return, ep_data
 
@@ -138,12 +145,6 @@ def train_agent(
 
                 if eval_returns == max(eval_returns_all):
                     agent.save(os.path.join("../checkpoints/best.pt"))
-
-                # if eval_returns >= config["target_return"]:
-                #     pbar.write(
-                #         f"Reached return {eval_returns} >= target return of {config['target_return']}"
-                #     )
-                #     break
 
     if config["save_filename"]:
         print(

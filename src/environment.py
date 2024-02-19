@@ -1,3 +1,4 @@
+import cv2
 import gym
 from gym import spaces
 import numpy as np
@@ -65,6 +66,7 @@ class Environment(gym.Env):
 
         assert render_mode is None or render_mode in self.metadata["render_modes"]
         self.render_mode = render_mode
+        self.recording = False
 
         """
         if human-rendering is used, `self.window` will be a reference
@@ -178,6 +180,9 @@ class Environment(gym.Env):
         if self.render_mode == "human":
             self._render_frame()
 
+        if self.recording:
+            self._record_frame()
+
         return observation, reward, terminated, False, info
 
     def render(self):
@@ -230,6 +235,22 @@ class Environment(gym.Env):
             return np.transpose(
                 np.array(pygame.surfarray.pixels3d(canvas)), axes=(1, 0, 2)
             )
+
+    def init_recording(self, filepath):
+        size = self.render().shape[:2][::-1]
+        fourcc = cv2.VideoWriter_fourcc(*"mp4v")
+        self._writer = cv2.VideoWriter(filepath, fourcc, 10, size)
+        self.recording = True
+
+    def _record_frame(self):
+        if not self.recording:
+            return
+        frame = self.render()
+        self._writer.write(cv2.cvtColor(frame, cv2.COLOR_RGB2BGR))
+
+    def finish_recording(self):
+        self._writer.release()
+        self.recording = False
 
     def close(self):
         if self.window is not None:

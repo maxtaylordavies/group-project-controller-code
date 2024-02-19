@@ -24,7 +24,7 @@ config = {
     "save_filename": "car_latest.pt",
 }
 
-env = gym.make("WindyCar-v0", render_mode="human")
+env = gym.make("WindyCar-v0", render_mode="rgb_array")
 agent = DDPGAgent(
     action_space=env.action_space, observation_space=env.observation_space, **config
 )
@@ -37,14 +37,15 @@ eval_returns_all = []
 eval_times_all = []
 
 eval_returns = 0
-for _ in range(config["eval_episodes"]):
+for ep_idx in range(config["eval_episodes"]):
     _, episode_return, _ = play_episode(
         env,
         agent,
         0,
         train=False,
         explore=False,
-        render=True,
+        render=False,
+        record_fp=f"../recordings/{ep_idx}.mp4",
         max_steps=config["episode_length"],
         batch_size=config["batch_size"],
     )
