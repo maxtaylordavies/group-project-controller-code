@@ -12,7 +12,7 @@ s = \bigg[(p_x, p_y), (v_x,v_y), \alpha, w, O\bigg]
 ### Action
 The action space is given by a continuous forward acceleration value, and a continuous change in steering angle (i.e. angular velocity); each bounded by some maximum magnitude.
 ```math
-a = (a_x, v_\alpha) \in [-a_\text{max}, a_\text{max}] \times [-v_\alpha_\text{max}, v_\alpha_\text{max}]
+a = (a_x, v_\alpha) \in [-a_\text{max}, a_\text{max}] \times [-v_{\alpha_\text{max}}, v_{\alpha_\text{max}}]
 ```
 
 ### Transition function
@@ -33,7 +33,7 @@ where $\epsilon$ is some scalar random variable representing the wind gust (we c
 ### Reward function
 We want the reward function to reflect three (terminal) outcomes: (1) the vehicle is pushed off the path by the wind (bad), (2) the vehicle collides with an obstacle (bad), or (3) the vehicle reaches the end of the path (good). In addition to these outcomes, we penalize the vehicle at each timestep based on its distance from both the goal and the centre of the path, with an additional penalty given for being stationary over multiple timesteps. We can define the reward function as follows:
 ```math
-r_\text{base}(s,a) = -c_1\bigg(\sqrt{(p_x - x_\text{max})^2 + p_y^2}\bigg) - c_2\|p_y|
+r_\text{base}(s,a) = -c_1\bigg(\sqrt{(p_x - x_\text{max})^2 + p_y^2}\bigg) - c_2|p_y|
 ```
 ```math
 r(s,a) = r_\text{base}(s,a) + \begin{cases}
