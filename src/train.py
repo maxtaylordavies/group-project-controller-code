@@ -25,7 +25,7 @@ def play_episode(
     explore=True,
     render=False,
     record_fp="",
-    max_steps=200,
+    max_steps=500,
     batch_size=64,
 ):
     ep_data, done = defaultdict(list), False
