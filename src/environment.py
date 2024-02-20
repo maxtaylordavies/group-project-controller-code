@@ -1,3 +1,4 @@
+import cv2
 import gym
 from gym import spaces
 import numpy as np
@@ -10,13 +11,19 @@ from src.constants import (
     MAX_WHEEL_ANGLE,
     MAX_WIND,
     MAX_WIND_CHANGE,
+    SUCCESS_REWARD,
+    FAILURE_PENALTY,
+    STATIONARY_PENALTY,
+    STATIONARY_STEPS_THRESHOLD,
+    GOAL_DISTANCE_COEFF,
+    WALL_DISTANCE_COEFF,
 )
 
 
 class Environment(gym.Env):
     metadata = {"render_modes": ["human", "rgb_array"], "render_fps": 4}
 
-    def __init__(self, render_mode=None, width=6, length=24, dt=1.0):
+    def __init__(self, render_mode=None, width=6, length=30, dt=0.2):
         self.width, self.length, self.dt = width, length, dt
         self.window_size = (
             512,
@@ -58,13 +65,14 @@ class Environment(gym.Env):
         and change in steering angle (i.e. angular velocity)
         """
         self.action_space = spaces.Box(
-            low=np.array([0, -MAX_ANGULAR_V]),
+            low=np.array([-MAX_ACCEL, -MAX_ANGULAR_V]),
             high=np.array([MAX_ACCEL, MAX_ANGULAR_V]),
             shape=(2,),
         )
 
         assert render_mode is None or render_mode in self.metadata["render_modes"]
         self.render_mode = render_mode
+        self.recording = False
 
         """
         if human-rendering is used, `self.window` will be a reference
@@ -80,8 +88,8 @@ class Environment(gym.Env):
         return {
             "car_p": self._car_pos,
             "car_v": self._car_vel,
-            "wheel_angle": self._wheel_angle,
-            "wind": self._wind,
+            "wheel_angle": np.array([self._wheel_angle], dtype=np.float32),
+            "wind": np.array([self._wind], dtype=np.float32),
         }
 
     def _get_info(self):
@@ -94,12 +102,13 @@ class Environment(gym.Env):
         # initialise car position and velocity at track start
         self._car_pos = np.array([0.0, 0.0], dtype=np.float32)
         self._car_vel = np.array([0.0, 0.0], dtype=np.float32)
-        self._wheel_angle = np.array(0.0, dtype=np.float32)
+        self._wheel_angle = 0.0
 
         # sample random initial wind speed
-        self._wind = np.array(
-            self.np_random.uniform(-MAX_WIND, MAX_WIND), dtype=np.float32
-        )
+        self._wind = self.np_random.uniform(-MAX_WIND, MAX_WIND)
+
+        # to track how many steps the car has been stationary
+        self._prev_x_pos, self._steps_stationary = 0.0, 0
 
         observation = self._get_obs()
         info = self._get_info()
@@ -116,6 +125,13 @@ class Environment(gym.Env):
             self._car_pos + delta_p, [0, -self.width / 2], [self.length, self.width / 2]
         )
 
+        # update stationary steps tracker
+        if self._car_pos[0] == self._prev_x_pos:
+            self._steps_stationary += 1
+        else:
+            self._steps_stationary = 0
+        self._prev_x_pos = self._car_pos[0]
+
         # then, update v_t based on acceleration and current wheel angle
         delta_v = self.dt * np.array([action[0], np.sin(self._wheel_angle)])
         self._car_vel = np.clip(
@@ -129,21 +145,34 @@ class Environment(gym.Env):
         )
 
         # finally, update wind speed based on random perturbation
-        delta_wind = self.np_random.uniform(-MAX_WIND_CHANGE, MAX_WIND_CHANGE)
+        delta_wind = self.dt * self.np_random.uniform(-MAX_WIND_CHANGE, MAX_WIND_CHANGE)
         self._wind = np.clip(self._wind + delta_wind, -MAX_WIND, MAX_WIND)
 
     def _compute_reward_and_terminated(self):
-        # reward is negative distance to goal
-        r = -np.linalg.norm(self._car_pos - np.array([self.length, 0]))
-
-        # terminate if car goes off track or if it reaches the goal
-        terminated = (
-            self._car_pos[0] < 0
-            or self._car_pos[0] >= self.length
-            or abs(self._car_pos[1]) >= self.width / 2
+        # base reward is some multiple of negative distance to goal
+        r, term = (
+            GOAL_DISTANCE_COEFF
+            * -np.linalg.norm(self._car_pos - np.array([self.length, 0]))
+            / self.length,
+            False,
         )
 
-        return r, terminated
+        # penalise distance from track centre
+        r -= WALL_DISTANCE_COEFF * np.abs(self._car_pos[1])
+
+        # penalise being stationary
+        if self._steps_stationary >= STATIONARY_STEPS_THRESHOLD:
+            r -= STATIONARY_PENALTY
+
+        # terminate if car goes off track or if it reaches the goal
+        if self._car_pos[0] < 0:
+            term = True
+        elif self._car_pos[0] >= self.length:
+            r, term = r + SUCCESS_REWARD, True
+        elif abs(self._car_pos[1]) >= self.width / 2:
+            r, term = r - FAILURE_PENALTY, True
+
+        return r, term
 
     def step(self, action):
         self._update_state(action)
@@ -155,6 +184,9 @@ class Environment(gym.Env):
 
         if self.render_mode == "human":
             self._render_frame()
+
+        if self.recording:
+            self._record_frame()
 
         return observation, reward, terminated, False, info
 
@@ -192,7 +224,7 @@ class Environment(gym.Env):
         car_y = int(self.window_size[1] / 2 - self._car_pos[1] * pix_size)
         car_img = pygame.image.load("../car.png")
         car_img = pygame.transform.scale(car_img, (2 * int(pix_size), int(pix_size)))
-        car_img = pygame.transform.rotate(car_img, -np.degrees(self._wheel_angle))
+        car_img = pygame.transform.rotate(car_img, np.degrees(self._wheel_angle))
         canvas.blit(car_img, (car_x, car_y))
 
         if self.render_mode == "human":
@@ -208,6 +240,22 @@ class Environment(gym.Env):
             return np.transpose(
                 np.array(pygame.surfarray.pixels3d(canvas)), axes=(1, 0, 2)
             )
+
+    def init_recording(self, filepath):
+        size = self.render().shape[:2][::-1]
+        fourcc = cv2.VideoWriter_fourcc(*"mp4v")
+        self._writer = cv2.VideoWriter(filepath, fourcc, 30, size)
+        self.recording = True
+
+    def _record_frame(self):
+        if not self.recording:
+            return
+        frame = self.render()
+        self._writer.write(cv2.cvtColor(frame, cv2.COLOR_RGB2BGR))
+
+    def finish_recording(self):
+        self._writer.release()
+        self.recording = False
 
     def close(self):
         if self.window is not None:
