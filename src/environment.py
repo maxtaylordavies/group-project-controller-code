@@ -105,8 +105,7 @@ class Environment(gym.Env):
         self._wheel_angle = 0.0
 
         # sample random initial wind speed
-        # self._wind = self.np_random.uniform(-MAX_WIND, MAX_WIND)
-        self._wind = 0.5
+        self._wind = self.np_random.uniform(-MAX_WIND, MAX_WIND)
 
         # to track how many steps the car has been stationary
         self._prev_x_pos, self._steps_stationary = 0.0, 0
