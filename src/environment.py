@@ -112,7 +112,8 @@ class Environment(gym.Env):
         self._wheel_angle = 0.0
 
         # place obstacles
-        self._obstacles = np.array([[self.length / 2, 0]], dtype=np.float32)
+        obstacle_pos = self.np_random.choice([0.25, 0.5, 0.75])
+        self._obstacles = np.array([[self.length * obstacle_pos, 0]], dtype=np.float32)
 
         # sample random initial wind speed
         self._wind = self.np_random.uniform(-MAX_WIND, MAX_WIND)
