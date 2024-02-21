@@ -178,9 +178,7 @@ class Environment(gym.Env):
     def _compute_reward_and_terminated(self):
         # base reward is some multiple of negative distance to goal
         r, term = (
-            GOAL_DISTANCE_COEFF
-            * -np.linalg.norm(self._car_pos - np.array([self.length, 0]))
-            / self.length,
+            GOAL_DISTANCE_COEFF * -self._distance_to_goal() / self.length,
             False,
         )
 
@@ -192,11 +190,11 @@ class Environment(gym.Env):
             r -= STATIONARY_PENALTY
 
         # terminate if car goes off track or if it reaches the goal
-        if self._car_pos[0] < 0:
-            term = True
-        elif self._car_pos[0] >= self.length:
+        if self._car_pos[0] >= self.length:
             r, term = r + SUCCESS_REWARD, True
         elif abs(self._car_pos[1]) >= self.width / 2:
+            r, term = r - FAILURE_PENALTY, True
+        elif self._detect_collision():
             r, term = r - FAILURE_PENALTY, True
 
         return r, term
@@ -206,12 +204,10 @@ class Environment(gym.Env):
 
         observation = self._get_obs()
         info = self._get_info()
-
         reward, terminated = self._compute_reward_and_terminated()
 
         if self.render_mode == "human":
             self._render_frame()
-
         if self.recording:
             self._record_frame()
 
