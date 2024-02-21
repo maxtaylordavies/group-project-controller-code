@@ -13,7 +13,6 @@ from src.constants import (
     MAX_WIND_CHANGE,
     SUCCESS_REWARD,
     FAILURE_PENALTY,
-    STATIONARY_PENALTY,
     STATIONARY_STEPS_THRESHOLD,
     GOAL_DISTANCE_COEFF,
     WALL_DISTANCE_COEFF,
@@ -69,8 +68,8 @@ class Environment(gym.Env):
         and change in steering angle (i.e. angular velocity)
         """
         self.action_space = spaces.Box(
-            low=np.array([-MAX_ACCEL, -MAX_ANGULAR_V]),
-            high=np.array([MAX_ACCEL, MAX_ANGULAR_V]),
+            low=np.array([-1.0, -1.0]),
+            high=np.array([1.0, 1.0]),
             shape=(2,),
         )
 
@@ -102,6 +101,14 @@ class Environment(gym.Env):
     def _get_info(self):
         return {}
 
+    def _scale_action(self, action):
+        # return action * np.array([MAX_ACCEL, MAX_ANGULAR_V], dtype=np.float32)
+        accel = ((action[0] + 1.0) / 2.0) * MAX_ACCEL  # scale [-1,1] to [0, MAX_ACCEL]
+        angular_v = (
+            action[1] * MAX_ANGULAR_V
+        )  # scale [-1,1] to [-MAX_ANGULAR_V, MAX_ANGULAR_V]
+        return np.array([accel, angular_v], dtype=np.float32)
+
     def reset(self, seed=None, options=None):
         # seed self.np_random
         super().reset(seed=seed)
@@ -130,6 +137,9 @@ class Environment(gym.Env):
         return observation, info
 
     def _update_state(self, action):
+        # scale action to physical units
+        action = self._scale_action(action)
+
         # first, update p_t based on v_t and wind_t
         delta_p = self.dt * (self._car_vel + np.array([0, self._wind]))
         self._car_pos = np.clip(
@@ -137,7 +147,7 @@ class Environment(gym.Env):
         )
 
         # update stationary steps tracker
-        if self._car_pos[0] == self._prev_x_pos:
+        if np.abs(self._car_pos[0] - self._prev_x_pos) < 1e-3:
             self._steps_stationary += 1
         else:
             self._steps_stationary = 0
@@ -177,28 +187,23 @@ class Environment(gym.Env):
                 return True
 
     def _compute_reward_and_terminated(self):
+        # terminate if car reaches the goal, goes off track, collides with an obstacle or is stationary for too long
+        if self._car_pos[0] >= self.length:
+            return SUCCESS_REWARD, True
+        elif abs(self._car_pos[1]) >= self.width / 2:
+            return -FAILURE_PENALTY, True
+        elif self._detect_collision():
+            return -FAILURE_PENALTY, True
+        elif self._steps_stationary >= STATIONARY_STEPS_THRESHOLD:
+            return -FAILURE_PENALTY, True
+
         # base reward is some multiple of negative distance to goal
-        r, term = (
-            GOAL_DISTANCE_COEFF * -self._distance_to_goal() / self.length,
-            False,
-        )
+        r = GOAL_DISTANCE_COEFF * -self._distance_to_goal() / self.length
 
         # penalise distance from track centre
         r -= WALL_DISTANCE_COEFF * np.abs(self._car_pos[1])
 
-        # penalise being stationary
-        if self._steps_stationary >= STATIONARY_STEPS_THRESHOLD:
-            r -= STATIONARY_PENALTY
-
-        # terminate if car goes off track or if it reaches the goal
-        if self._car_pos[0] >= self.length:
-            r, term = r + SUCCESS_REWARD, True
-        elif abs(self._car_pos[1]) >= self.width / 2:
-            r, term = r - FAILURE_PENALTY, True
-        elif self._detect_collision():
-            r, term = r - FAILURE_PENALTY, True
-
-        return r, term
+        return r, False
 
     def step(self, action):
         self._update_state(action)

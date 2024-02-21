@@ -36,9 +36,9 @@ except:
 eval_returns_all = []
 eval_times_all = []
 
-eval_returns = 0
+eval_returns, success_rate = 0, 0
 for ep_idx in range(config["eval_episodes"]):
-    _, episode_return, _ = play_episode(
+    _, episode_return, _, success = play_episode(
         env,
         agent,
         0,
@@ -50,6 +50,7 @@ for ep_idx in range(config["eval_episodes"]):
         batch_size=config["batch_size"],
     )
     eval_returns += episode_return / config["eval_episodes"]
+    success_rate += int(success) / config["eval_episodes"]
 
-print(eval_returns)
+print(f"Mean return {eval_returns}, success rate {round(100 * success_rate)}%")
 env.close()
