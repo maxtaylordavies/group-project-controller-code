@@ -17,6 +17,9 @@ from src.constants import (
     STATIONARY_STEPS_THRESHOLD,
     GOAL_DISTANCE_COEFF,
     WALL_DISTANCE_COEFF,
+    OBSTACLE_WIDTH,
+    OBSTACLE_HEIGHT,
+    OBSTACLE_THRESHOLD,
 )
 
 
@@ -104,6 +107,9 @@ class Environment(gym.Env):
         self._car_vel = np.array([0.0, 0.0], dtype=np.float32)
         self._wheel_angle = 0.0
 
+        # place obstacles
+        self._obstacles = []
+
         # sample random initial wind speed
         self._wind = self.np_random.uniform(-MAX_WIND, MAX_WIND)
 
@@ -147,6 +153,23 @@ class Environment(gym.Env):
         # finally, update wind speed based on random perturbation
         delta_wind = self.dt * self.np_random.uniform(-MAX_WIND_CHANGE, MAX_WIND_CHANGE)
         self._wind = np.clip(self._wind + delta_wind, -MAX_WIND, MAX_WIND)
+
+    def _distance_to_goal(self):
+        return np.linalg.norm(self._car_pos - np.array([self.length, 0]))
+
+    def _detect_collision(self):
+        for o in self._obstacles:
+            x_bounds = o[0] + np.array([-OBSTACLE_WIDTH / 2, OBSTACLE_WIDTH / 2])
+            y_bounds = o[1] + np.array([-OBSTACLE_HEIGHT / 2, OBSTACLE_HEIGHT / 2])
+            if np.all(
+                [
+                    x_bounds[0] - self._car_pos[0] <= OBSTACLE_THRESHOLD,
+                    self._car_pos[0] - x_bounds[1] <= OBSTACLE_THRESHOLD,
+                    y_bounds[0] - self._car_pos[1] <= OBSTACLE_THRESHOLD,
+                    self._car_pos[1] - y_bounds[1] <= OBSTACLE_THRESHOLD,
+                ]
+            ):
+                return True
 
     def _compute_reward_and_terminated(self):
         # base reward is some multiple of negative distance to goal
@@ -218,6 +241,19 @@ class Environment(gym.Env):
                 track_width,
             ),
         )
+
+        # draw obstacles
+        for o in self._obstacles:
+            pygame.draw.rect(
+                canvas,
+                (255, 0, 0),
+                pygame.Rect(
+                    int(o[0] * pix_size),
+                    int(self.window_size[1] / 2 - o[1] * pix_size),
+                    int(pix_size * OBSTACLE_WIDTH),
+                    int(pix_size * OBSTACLE_HEIGHT),
+                ),
+            )
 
         # render car from png file
         car_x = int(self._car_pos[0] * pix_size)
