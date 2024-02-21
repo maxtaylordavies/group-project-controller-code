@@ -86,6 +86,7 @@ def train_agent(
     replay_buffer = ReplayBuffer(config["buffer_capacity"])
 
     eval_returns_all = []
+    eval_success_rates_all = []
     eval_timesteps_all = []
     eval_times_all = []
     run_data = defaultdict(list)
@@ -144,11 +145,17 @@ def train_agent(
                         f"Evaluation at timestep {timesteps_elapsed}: mean return {eval_returns}, success rate {round(100 * success_rate)}%"
                     )
                 eval_returns_all.append(eval_returns)
+                eval_success_rates_all.append(success_rate)
                 eval_timesteps_all.append(timesteps_elapsed)
                 eval_times_all.append(time.time() - start_time)
 
                 if eval_returns == max(eval_returns_all):
-                    agent.save(os.path.join("../checkpoints/best.pt"))
+                    agent.save(os.path.join("../checkpoints/best_return.pt"))
+                if success_rate == max(eval_success_rates_all):
+                    agent.save(os.path.join("../checkpoints/best_success.pt"))
+                if success_rate > 0.99:
+                    print("Success rate reached 100%, stopping training.")
+                    break
 
     if config["save_filename"]:
         print(

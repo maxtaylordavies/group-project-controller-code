@@ -29,7 +29,7 @@ agent = DDPGAgent(
     action_space=env.action_space, observation_space=env.observation_space, **config
 )
 try:
-    agent.restore(os.path.join("../checkpoints/best.pt"))
+    agent.restore(os.path.join("../checkpoints/best_success.pt"))
 except:
     raise ValueError("Could not find model to load")
 

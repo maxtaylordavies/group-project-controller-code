@@ -147,7 +147,7 @@ class Environment(gym.Env):
         )
 
         # update stationary steps tracker
-        if np.abs(self._car_pos[0] - self._prev_x_pos) < 1e-3:
+        if np.abs(self._car_pos[0] - self._prev_x_pos) < 1e-2:
             self._steps_stationary += 1
         else:
             self._steps_stationary = 0
