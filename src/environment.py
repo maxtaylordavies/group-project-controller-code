@@ -60,6 +60,7 @@ class Environment(gym.Env):
                 "wind": spaces.Box(
                     low=-MAX_WIND, high=MAX_WIND, shape=(1,), dtype=np.float32
                 ),
+                "obstacle": spaces.Box(low=0, high=1, shape=(1,), dtype=np.float32),
             }
         )
 
@@ -93,6 +94,9 @@ class Environment(gym.Env):
             "car_v": self._car_vel,
             "wheel_angle": np.array([self._wheel_angle], dtype=np.float32),
             "wind": np.array([self._wind], dtype=np.float32),
+            "obstacle": np.array(
+                [self._obstacles[0][0] / self.width], dtype=np.float32
+            ),
         }
 
     def _get_info(self):
@@ -108,7 +112,7 @@ class Environment(gym.Env):
         self._wheel_angle = 0.0
 
         # place obstacles
-        self._obstacles = []
+        self._obstacles = np.array([[self.length / 2, 0]], dtype=np.float32)
 
         # sample random initial wind speed
         self._wind = self.np_random.uniform(-MAX_WIND, MAX_WIND)
@@ -230,7 +234,7 @@ class Environment(gym.Env):
         pix_size = self.window_size[0] / self.length
 
         # draw track
-        track_width = pix_size * self.width
+        track_width = pix_size * (self.width + 2)
         pygame.draw.rect(
             canvas,
             (0, 0, 0),
