@@ -9,6 +9,7 @@ from tqdm import tqdm
 
 from src.ddpg_agent import DDPGAgent
 from src.replay import ReplayBuffer
+from src.constants import SUCCESS_REWARD
 
 
 def process_obs(obs):
@@ -38,11 +39,14 @@ def play_episode(
     if record_fp != "":
         env.init_recording(record_fp)
 
-    ep_timesteps, ep_return = 0, 0.0
+    ep_timesteps, ep_return, success = 0, 0.0, False
     while not done:
         action = agent.act(obs, explore=explore)
         nobs, reward, done, _, _ = env.step(action)
         nobs = process_obs(nobs)
+
+        if reward == SUCCESS_REWARD:
+            success = True
 
         if train:
             replay_buffer.push(
@@ -70,7 +74,7 @@ def play_episode(
     if record_fp != "":
         env.finish_recording()
 
-    return ep_timesteps, ep_return, ep_data
+    return ep_timesteps, ep_return, ep_data, success
 
 
 def train_agent(
@@ -82,6 +86,7 @@ def train_agent(
     replay_buffer = ReplayBuffer(config["buffer_capacity"])
 
     eval_returns_all = []
+    eval_success_rates_all = []
     eval_timesteps_all = []
     eval_times_all = []
     run_data = defaultdict(list)
@@ -99,7 +104,7 @@ def train_agent(
             agent.schedule_hyperparameters(timesteps_elapsed, config["max_timesteps"])
 
             # sample episode
-            ep_timesteps, ep_return, ep_data = play_episode(
+            ep_timesteps, ep_return, ep_data, _ = play_episode(
                 env,
                 agent,
                 replay_buffer,
@@ -121,9 +126,9 @@ def train_agent(
 
             # possibly run evaluation
             if timesteps_elapsed % config["eval_freq"] < ep_timesteps:
-                eval_returns, successes = 0, 0
+                eval_returns, success_rate = 0, 0
                 for _ in range(config["eval_episodes"]):
-                    _, ep_return, _ = play_episode(
+                    _, ep_return, _, success = play_episode(
                         env,
                         agent,
                         replay_buffer,
@@ -134,17 +139,23 @@ def train_agent(
                         batch_size=config["batch_size"],
                     )
                     eval_returns += ep_return / config["eval_episodes"]
-                    successes += ep_return >= 0
+                    success_rate += int(success) / config["eval_episodes"]
                 if output:
                     pbar.write(
-                        f"Evaluation at timestep {timesteps_elapsed}: mean return {eval_returns}, success rate {successes / config['eval_episodes']}"
+                        f"Evaluation at timestep {timesteps_elapsed}: mean return {eval_returns}, success rate {round(100 * success_rate)}%"
                     )
                 eval_returns_all.append(eval_returns)
+                eval_success_rates_all.append(success_rate)
                 eval_timesteps_all.append(timesteps_elapsed)
                 eval_times_all.append(time.time() - start_time)
 
                 if eval_returns == max(eval_returns_all):
-                    agent.save(os.path.join("../checkpoints/best.pt"))
+                    agent.save(os.path.join("../checkpoints/best_return.pt"))
+                if success_rate == max(eval_success_rates_all):
+                    agent.save(os.path.join("../checkpoints/best_success.pt"))
+                if success_rate > 0.99:
+                    print("Success rate reached 100%, stopping training.")
+                    break
 
     if config["save_filename"]:
         print(
