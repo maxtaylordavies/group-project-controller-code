@@ -59,7 +59,12 @@ class Environment(gym.Env):
                 "wind": spaces.Box(
                     low=-MAX_WIND, high=MAX_WIND, shape=(1,), dtype=np.float32
                 ),
-                "obstacle": spaces.Box(low=0, high=1, shape=(1,), dtype=np.float32),
+                "obstacle": spaces.Box(
+                    low=np.array([0, -width / 2]),
+                    high=np.array([length, width / 2]),
+                    shape=(2,),
+                    dtype=np.float32,
+                ),
             }
         )
 
@@ -93,9 +98,7 @@ class Environment(gym.Env):
             "car_v": self._car_vel,
             "wheel_angle": np.array([self._wheel_angle], dtype=np.float32),
             "wind": np.array([self._wind], dtype=np.float32),
-            "obstacle": np.array(
-                [self._obstacles[0][0] / self.width], dtype=np.float32
-            ),
+            "obstacle": np.array(self._obstacles[0], dtype=np.float32),
         }
 
     def _get_info(self):
@@ -119,8 +122,9 @@ class Environment(gym.Env):
         self._wheel_angle = 0.0
 
         # place obstacles
-        obstacle_pos = self.np_random.choice([0.25, 0.5, 0.75])
-        self._obstacles = np.array([[self.length * obstacle_pos, 0]], dtype=np.float32)
+        obstacle_x = self.np_random.choice([0.25, 0.5, 0.75]) * self.length
+        obstacle_y = self.np_random.choice([-0.2, 0.0, 0.2]) * self.width
+        self._obstacles = np.array([[obstacle_x, obstacle_y]], dtype=np.float32)
 
         # sample random initial wind speed
         self._wind = self.np_random.uniform(-MAX_WIND, MAX_WIND)
