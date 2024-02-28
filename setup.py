@@ -12,6 +12,8 @@ setup(
         "matplotlib",
         "numpy",
         "h5py",
+        "onnx",
+        "onnxruntime",
     ],
     packages=["src"],
 )

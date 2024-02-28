@@ -53,33 +53,35 @@ class DDPGAgent:
         self.lower_action_bound = action_space.low[0]
         self.saveables = {}
 
-        ACTION_SIZE = action_space.shape[0]
+        self.action_shape = action_space.shape[0]
         if isinstance(observation_space, gym.spaces.dict.Dict):
-            STATE_SIZE = 0
+            self.state_shape = 0
             for k, v in observation_space.items():
-                STATE_SIZE += v.shape[0]
+                self.state_shape += v.shape[0]
         else:
-            STATE_SIZE = observation_space.shape[0]
+            self.state_shape = observation_space.shape[0]
 
-        print(f"STATE_SIZE: {STATE_SIZE}")
-        print(f"ACTION_SIZE: {ACTION_SIZE}")
+        print(f"self.state_shape: {self.state_shape}")
+        print(f"self.action_shape: {self.action_shape}")
 
         # set up networks
         self.actor = FCNetwork(
-            (STATE_SIZE, *policy_hidden_size, ACTION_SIZE),
+            (self.state_shape, *policy_hidden_size, self.action_shape),
             output_activation=torch.nn.Tanh,
         )
         self.actor_target = FCNetwork(
-            (STATE_SIZE, *policy_hidden_size, ACTION_SIZE),
+            (self.state_shape, *policy_hidden_size, self.action_shape),
             output_activation=torch.nn.Tanh,
         )
         self.actor_target.hard_update(self.actor)
 
         self.critic = FCNetwork(
-            (STATE_SIZE + ACTION_SIZE, *critic_hidden_size, 1), output_activation=None
+            (self.state_shape + self.action_shape, *critic_hidden_size, 1),
+            output_activation=None,
         )
         self.critic_target = FCNetwork(
-            (STATE_SIZE + ACTION_SIZE, *critic_hidden_size, 1), output_activation=None
+            (self.state_shape + self.action_shape, *critic_hidden_size, 1),
+            output_activation=None,
         )
         self.critic_target.hard_update(self.critic)
 
@@ -105,8 +107,8 @@ class DDPGAgent:
         self.last_hyperparam_update = 0
 
         # define a gaussian for exploration
-        mean = torch.zeros(ACTION_SIZE)
-        std = 0.1 * torch.ones(ACTION_SIZE)
+        mean = torch.zeros(self.action_shape)
+        std = 0.1 * torch.ones(self.action_shape)
         self.noise = DiagGaussian(mean, std)
 
         self.saveables.update(
