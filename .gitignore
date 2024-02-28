@@ -5,3 +5,4 @@ group_project_controller_code.egg-info
 scripts/scratchpad.py
 checkpoints/
 recordings/
+**/*.hdf5

@@ -23,6 +23,7 @@ def play_episode(
     agent,
     replay_buffer,
     train=True,
+    save_to_buffer=True,
     explore=True,
     render=False,
     record_fp="",
@@ -48,7 +49,7 @@ def play_episode(
         if reward == SUCCESS_REWARD:
             success = True
 
-        if train:
+        if train or save_to_buffer:
             replay_buffer.push(
                 np.array(obs, dtype=np.float32),
                 np.array(action, dtype=np.float32),
@@ -56,11 +57,11 @@ def play_episode(
                 np.array([reward], dtype=np.float32),
                 np.array([done], dtype=np.float32),
             )
-            if len(replay_buffer) >= batch_size:
-                batch = replay_buffer.sample(batch_size)
-                new_data = agent.update(batch)
-                for k, v in new_data.items():
-                    ep_data[k].append(v)
+        if train and len(replay_buffer) >= batch_size:
+            batch = replay_buffer.sample(batch_size)
+            new_data = agent.update(batch)
+            for k, v in new_data.items():
+                ep_data[k].append(v)
 
         ep_timesteps += 1
         ep_return += reward
@@ -157,11 +158,10 @@ def train_agent(
                     print("Success rate reached 100%, stopping training.")
                     break
 
-    if config["save_filename"]:
-        print(
-            "Saving to: ",
-            agent.save(os.path.join("../checkpoints/latest.pt")),
-        )
+    print(
+        "Saving to: ",
+        agent.save(os.path.join("../checkpoints/latest.pt")),
+    )
 
     return (
         np.array(eval_returns_all),

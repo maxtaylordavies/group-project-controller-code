@@ -11,6 +11,7 @@ setup(
         "opencv-python",
         "matplotlib",
         "numpy",
+        "h5py",
     ],
     packages=["src"],
 )
