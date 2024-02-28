@@ -3,6 +3,8 @@ Experience replay implementations
 """
 
 from collections import namedtuple
+
+import h5py
 import numpy as np
 import torch
 
@@ -28,7 +30,9 @@ class ReplayBuffer:
         :param capacity (int): total capacity of the replay buffer
         """
         self.capacity = int(capacity)
-        self.memory = None
+        self.memory = Transition(
+            states=None, actions=None, next_states=None, rewards=None, done=None
+        )
         self.writes = 0
 
     def init_memory(self, transition: Transition):
@@ -51,7 +55,7 @@ class ReplayBuffer:
 
         :param *args: arguments to create transition from
         """
-        if not self.memory:
+        if self.memory.states is None:
             self.init_memory(Transition(*args))
 
         position = (self.writes) % self.capacity
@@ -80,3 +84,34 @@ class ReplayBuffer:
     def __len__(self):
         """Gives the length of the buffer"""
         return min(self.writes, self.capacity)
+
+    def save(self, filename: str):
+        """Saves the replay buffer to a file
+
+        :param filename (str): filename to save the replay buffer to
+        """
+        with h5py.File(filename, "w") as f:
+            f.create_dataset(
+                "observations",
+                data=self.memory.states[: self.writes],
+                compression="gzip",
+            )
+            f.create_dataset(
+                "actions", data=self.memory.actions[: self.writes], compression="gzip"
+            )
+            f.create_dataset(
+                "rewards", data=self.memory.rewards[: self.writes], compression="gzip"
+            )
+            f.create_dataset(
+                "terminations", data=self.memory.done[: self.writes], compression="gzip"
+            )
+            f.flush()
+
+
+def load_saved_replay_data(filename: str):
+    with h5py.File("../replay_buffer.hdf5", "r") as f:
+        observations = f["observations"][()]
+        actions = f["actions"][()]
+        rewards = f["rewards"][()]
+        terminations = f["terminations"][()]
+    return observations, actions, rewards, terminations
