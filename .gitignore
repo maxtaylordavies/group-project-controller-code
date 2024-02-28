@@ -6,3 +6,4 @@ scripts/scratchpad.py
 checkpoints/
 recordings/
 **/*.hdf5
+**/*.onnx
