@@ -22,7 +22,7 @@ from src.constants import (
 )
 
 
-class Environment(gym.Env):
+class BasicEnvironment(gym.Env):
     metadata = {"render_modes": ["human", "rgb_array"], "render_fps": 4}
 
     def __init__(self, render_mode=None, width=6, length=30, dt=0.2):
