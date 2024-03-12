@@ -1,0 +1,6 @@
+<launch>
+    <!-- This version uses the openai_ros environments -->
+    <rosparam command="load" file="$(find hunter2_rl)/config/hunter2_config.yaml" />
+    <!-- Launch the training system -->
+    <node pkg="hunter2_rl" name="hunter2_rl" type="start_ddpg_wall.py" output="screen"/>
+</launch>

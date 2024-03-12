@@ -1,7 +1,7 @@
-turtlebot2: #namespace
+hunter2: #namespace
   task_and_robot_environment_name: 'Hunter2Maze-v0'
-  ros_ws_abspath: "/home/user/simulation_ws"
-  running_step: 0.04 # amount of time the control will be executed
+  ros_ws_abspath: "/root/hunter_ws"
+  control_running_step: 0.04 # amount of time the control will be executed
   pos_step: 0.016     # increment in position for each command
   
   #DDPG parameters
@@ -12,6 +12,20 @@ turtlebot2: #namespace
   nepisodes: 500
   nsteps: 10000
   running_step: 0.06 # Time for each step
+
+  eval_freq: 2000
+  eval_episodes: 10
+  policy_learning_rate: 5e-3
+  critic_learning_rate: 5e-3
+  critic_hidden_size: [64, 64]
+  policy_hidden_size: [64, 64]
+  tau: 0.01
+  batch_size: 128
+  buffer_capacity: int(1e6)
+  episode_length: 200
+  max_timesteps: 100000
+  max_time: 120 * 60
+  gamma: 0.99
 
   #Environment parameters
   n_actions: 2

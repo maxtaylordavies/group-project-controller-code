@@ -1,0 +1,1 @@
+from hunter2_rl.task_envs.hunter2_maze import Hunter2MazeEnv

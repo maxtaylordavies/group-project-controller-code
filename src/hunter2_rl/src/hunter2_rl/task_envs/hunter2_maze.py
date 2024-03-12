@@ -3,7 +3,7 @@ import numpy
 import time
 import math
 from gym import spaces
-from group-project-controller-code.src.hunter2.robot_envs import hunter2_env
+from hunter2_rl.robot_envs import hunter2_env
 from gym.envs.registration import register
 from sensor_msgs.msg import LaserScan
 from std_msgs.msg import Header
@@ -11,11 +11,11 @@ from std_msgs.msg import Header
 # The path is __init__.py of openai_ros, where we import the TurtleBot2MazeEnv directly
 timestep_limit_per_episode = 100 # Can be any Value
 
-register(
-        id='Hunter2Maze-v0',
-        entry_point='group-project-controller-code.src.hunter2.task_envs.hunter2_maze:Hunter2MazeEnv',
-        timestep_limit=timestep_limit_per_episode,
-    )
+# register(
+#         id='Hunter2Maze-v0',
+#         entry_point='hunter2_rl.task_envs.hunter2_maze:Hunter2MazeEnv',
+#         timestep_limit=timestep_limit_per_episode,
+#     )
 
 class Hunter2MazeEnv(hunter2_env.Hunter2Env):
     def __init__(self):
@@ -29,7 +29,7 @@ class Hunter2MazeEnv(hunter2_env.Hunter2Env):
         self.action_space = spaces.Box(
             low=numpy.array([-1.0, -0.69]),
             high=numpy.array([1.0, 0.69]),
-            shape=(2,),
+            shape=(number_actions,),
         )
         
         # We set the reward range, which is not compulsory but here we do it.
@@ -50,12 +50,12 @@ class Hunter2MazeEnv(hunter2_env.Hunter2Env):
         """
         
         # Actions and Observations
-        self.dec_obs = rospy.get_param("/hunter2/number_decimals_precision_obs", 1)
-        self.linear_forward_speed = rospy.get_param('/hunter2/linear_forward_speed')
-        self.linear_turn_speed = rospy.get_param('/hunter2/linear_turn_speed')
-        self.angular_speed = rospy.get_param('/hunter2/angular_speed')
-        self.init_linear_forward_speed = rospy.get_param('/hunter2/init_linear_forward_speed')
-        self.init_linear_turn_speed = rospy.get_param('/hunter2/init_linear_turn_speed')
+        # self.dec_obs = rospy.get_param("/hunter2/number_decimals_precision_obs", 1)
+        # self.linear_forward_speed = rospy.get_param('/hunter2/linear_forward_speed')
+        # self.linear_turn_speed = rospy.get_param('/hunter2/linear_turn_speed')
+        # self.angular_speed = rospy.get_param('/hunter2/angular_speed')
+        # self.init_linear_forward_speed = rospy.get_param('/hunter2/init_linear_forward_speed')
+        # self.init_linear_turn_speed = rospy.get_param('/hunter2/init_linear_turn_speed')
         
         
         self.n_observations = rospy.get_param('/hunter2/n_observations')
@@ -89,15 +89,17 @@ class Hunter2MazeEnv(hunter2_env.Hunter2Env):
         
         # We only use two integers
         self.observation_space = spaces.Box(low, high)
+
+        self.init_linear_forward_speed = 0.0
+        self.init_linear_turn_speed = 0.0
         
         
         rospy.logdebug("ACTION SPACES TYPE===>"+str(self.action_space))
         rospy.logdebug("OBSERVATION SPACES TYPE===>"+str(self.observation_space))
         
         # Rewards
-        self.forwards_reward = rospy.get_param("/hunter2/goal_reward")
-        self.turn_reward = rospy.get_param("/hunter2/time_reward")
-        self.end_episode_points = rospy.get_param("/hunter2/end_episode_points")
+        self.goal_reward = rospy.get_param("/hunter2/goal_reward")
+        self.time_reward = rospy.get_param("/hunter2/time_reward")
 
         self.cumulated_steps = 0.0
 

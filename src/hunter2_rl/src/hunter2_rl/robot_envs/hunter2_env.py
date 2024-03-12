@@ -1,7 +1,7 @@
 import numpy
 import rospy
 import time
-from openai_ros import robot_gazebo_env
+from hunter2_rl import robot_gazebo_env
 from std_msgs.msg import Float64
 from sensor_msgs.msg import JointState
 from sensor_msgs.msg import Image
@@ -68,7 +68,7 @@ class Hunter2Env(robot_gazebo_env.RobotGazeboEnv):
         self._check_all_sensors_ready()
 
         # We Start all the ROS related Subscribers and publishers
-        rospy.Subscriber("/odom", Odometry, self._odom_callback)
+        rospy.Subscriber("/ackermann_steering_controller/odom", Odometry, self._odom_callback)
         #rospy.Subscriber("/camera/depth/image_raw", Image, self._camera_depth_image_raw_callback)
         #rospy.Subscriber("/camera/depth/points", PointCloud2, self._camera_depth_points_callback)
         #rospy.Subscriber("/camera/rgb/image_raw", Image, self._camera_rgb_image_raw_callback)
@@ -109,7 +109,7 @@ class Hunter2Env(robot_gazebo_env.RobotGazeboEnv):
         rospy.logdebug("Waiting for /odom to be READY...")
         while self.odom is None and not rospy.is_shutdown():
             try:
-                self.odom = rospy.wait_for_message("/odom", Odometry, timeout=5.0)
+                self.odom = rospy.wait_for_message("/ackermann_steering_controller/odom", Odometry, timeout=5.0)
                 rospy.logdebug("Current /odom READY=>")
 
             except:
